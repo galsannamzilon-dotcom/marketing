@@ -1,530 +1,571 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hot Buuz Challenge</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #2d1b4e 0%, #1a0f2e 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: 'Courier New', monospace;
-            overflow: hidden;
-        }
-        
-        #gameContainer {
-            position: relative;
-            box-shadow: 0 0 50px rgba(255, 100, 100, 0.3);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        
-        canvas {
-            display: block;
-            image-rendering: pixelated;
-            image-rendering: crisp-edges;
-        }
-        
-        #instructions {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #fff;
-            text-align: center;
-            font-size: 14px;
-            text-shadow: 2px 2px 0 #000;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 20px;
-            border-radius: 5px;
-            pointer-events: none;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hot Buuz Challenge - пре‑старт и бой</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: linear-gradient(135deg, #2d1b4e 0%, #1a0f2e 100%);
+      display: flex;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      font-family: "Courier New", monospace;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(0,0,0,.4);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    /* Прелоадер-пре‑старт: поверх канваса */
+    #prestartOverlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.45);
+      z-index: 2;
+      padding: 20px;
+    }
+    #prestartCard {
+      text-align: center;
+      background: rgba(255,255,255,.95);
+      padding: 26px 36px;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    #prestartCard h2 {
+      font-size: 28px;
+      color: #333;
+      margin-bottom: 12px;
+    }
+    #prestartCard p {
+      font-size: 18px;
+      color: #555;
+      margin-bottom: 14px;
+    }
+    #takeBuuzBtn {
+      padding: 12px 26px;
+      font-size: 18px;
+      font-weight: 700;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      background: #ff6b6b;
+      color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    }
+
+    /* Подсказки и элемент Health */ 
+    #hint {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.5);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      z-index: 3;
+      user-select: none;
+    }
+
+    /* Health bar декоративно рядом с верхом */
+    #healthBar {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 260px;
+      height: 20px;
+      background: #333;
+      border-radius: 10px;
+      border: 2px solid #fff;
+      overflow: hidden;
+      z-index: 3;
+    }
+    #healthFill {
+      height: 100%;
+      width: 100%;
+      background: #4CAF50;
+    }
+
+    /* Стили для подписей на слайдах (если расширим в будущем) */
+    .hidden { display: none; }
+  </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="instructions">Hold LEFT MOUSE BUTTON to stop eating!<br>Don't let the hot buuz burn you!</div>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <!-- Прелоад/пре‑старт: кнопка "взять буззу" -->
+    <div id="prestartOverlay" aria-hidden="true">
+      <div id="prestartCard">
+        <h2>Привет! Прежде чем начать</h2>
+        <p>Девочка сидит и моргает. Нажмите «Взять буззу», чтобы начать бой.</p>
+        <button id="takeBuuzBtn">Взять буззу</button>
+      </div>
     </div>
-    
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Disable anti-aliasing for pixel art look
-        ctx.imageSmoothingEnabled = false;
-        
-        // Game state
-        let gameState = {
-            health: 100,
-            isEating: true,
-            isDead: false,
-            isHolding: false,
-            burnLevel: 0,
-            animationFrame: 0,
-            steamParticles: [],
-            blinkTimer: 0,
-            isBlinking: false
+
+    <div id="hint" class="hidden">Удерживайте левую кнопку мыши, чтобы остановить обжиг</div>
+    <div id="healthBar" aria-label="Health bar">
+      <div id="healthFill"></div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    // Состояние игры
+    // phase: 'prestart' | 'running' | 'dead'
+    let gameState = {
+      phase: 'prestart',
+      health: 100,
+      isEating: false,
+      isDead: false,
+      isHolding: false,
+      burnLevel: 0,
+      animationFrame: 0,
+      steamParticles: [],
+      blinkTimer: 0,
+      isBlinking: true
+    };
+
+    // Цвета
+    const colors = {
+      skin: '#FFDFC4',
+      skinBlush: '#FFB6A3',
+      skinBurn: '#FF8A7A',
+      hair: '#1a1a1a',
+      shirt: '#FFFFFF',
+      buuz: '#F4E4C1',
+      buuzDark: '#E8D4A8',
+      table: '#8B4513',
+      tableDark: '#654321',
+      healthBg: '#333',
+      healthFill: '#4CAF50',
+      healthWarning: '#FF9800',
+      healthDanger: '#F44336'
+    };
+
+    // UI элементы
+    const prestartOverlay = document.getElementById('prestartOverlay');
+    const takeBuuzBtn = document.getElementById('takeBuuzBtn');
+    const healthFill = document.getElementById('healthFill');
+
+    function updateOverlay() {
+      prestartOverlay.style.display = (gameState.phase === 'prestart') ? 'flex' : 'none';
+    }
+
+    // Инициализация
+    takeBuuzBtn.addEventListener('click', () => {
+      // запуск игры
+      gameState.phase = 'running';
+      // ресет параметров под новую попытку
+      gameState.health = 100;
+      gameState.isDead = false;
+      gameState.isHolding = false;
+      gameState.burnLevel = 0;
+      gameState.isEating = true;
+      gameState.steamParticles = [];
+      gameState.animationFrame = 0;
+      gameState.blinkTimer = 0;
+      gameState.isBlinking = true;
+      updateOverlay();
+    });
+
+    // Обновим UI вклее
+    updateOverlay();
+
+    // Ввод: активен только во время running
+    canvas.addEventListener('mousedown', () => {
+      if (gameState.phase === 'running') gameState.isHolding = true;
+    });
+    canvas.addEventListener('mouseup', () => {
+      if (gameState.phase === 'running') gameState.isHolding = false;
+    });
+    canvas.addEventListener('mouseleave', () => {
+      if (gameState.phase === 'running') gameState.isHolding = false;
+    });
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (gameState.phase === 'running') gameState.isHolding = true;
+    }, { passive: false });
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (gameState.phase === 'running') gameState.isHolding = false;
+    }, { passive: false });
+
+    // Рисование персонажа (чиби-девочка)
+    function drawChibiGirl(x, y, scale = 4) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+
+      // Цвет кожи зависит от burnLevel
+      let skinColor = colors.skin;
+      if (gameState.burnLevel > 30) skinColor = colors.skinBlush;
+      if (gameState.burnLevel > 60) skinColor = colors.skinBurn;
+
+      if (gameState.phase === 'prestart' || gameState.isDead) {
+        // Предстартовый или мёртвый вид
+        drawAliveCharacter(skinColor);
+      } else {
+        drawAliveCharacter(skinColor);
+      }
+
+      ctx.restore();
+    }
+
+    function drawAliveCharacter(skinColor) {
+      // Тело/футболка
+      ctx.fillStyle = colors.shirt;
+      ctx.fillRect(-15, 15, 30, 20);
+      // Воротник
+      ctx.fillStyle = '#E0E0E0';
+      ctx.fillRect(-8, 15, 16, 3);
+
+      // Голова
+      ctx.fillStyle = skinColor;
+      ctx.fillRect(-16, -16, 32, 32);
+
+      // Волосы
+      ctx.fillStyle = colors.hair;
+      ctx.fillRect(-18, -10, 36, 20);
+      ctx.fillRect(-18, 5, 8, 15);
+      ctx.fillRect(10, 5, 8, 15);
+
+      // Бей
+      ctx.fillRect(-18, -18, 36, 8); // челка
+
+      // Глаза
+      if (gameState.isBlinking) {
+        ctx.fillStyle = colors.hair;
+        ctx.fillRect(-10, -2, 6, 2);
+        ctx.fillRect(4, -2, 6, 2);
+      } else {
+        ctx.fillStyle = colors.hair;
+        ctx.fillRect(-11, -4, 8, 8);
+        ctx.fillRect(3, -4, 8, 8);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-9, -2, 3, 3);
+        ctx.fillRect(5, -2, 3, 3);
+      }
+
+      // Румянец (при ожоге)
+      if (gameState.burnLevel > 30) {
+        ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
+        ctx.fillRect(-14, 2, 6, 4);
+        ctx.fillRect(8, 2, 6, 4);
+      }
+
+      // Рот
+      if (gameState.phase === 'prestart') {
+        ctx.fillStyle = '#CC6666';
+        ctx.fillRect(-3, 10, 6, 2);
+      } else if (gameState.isEating && !gameState.isHolding) {
+        ctx.fillStyle = '#CC6666';
+        ctx.fillRect(-4, 8, 8, 6);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-3, 9, 2, 2);
+        ctx.fillRect(1, 9, 2, 2);
+      } else {
+        ctx.fillStyle = '#CC6666';
+        ctx.fillRect(-3, 10, 6, 2);
+        ctx.fillRect(-4, 9, 2, 2);
+        ctx.fillRect(2, 9, 2, 2);
+      }
+
+      // Руки/левая и правая
+      if (gameState.phase === 'prestart') {
+        // Idle поза
+        ctx.fillStyle = colors.shirt;
+        ctx.fillRect(-18, 18, 6, 12);
+        ctx.fillRect(12, 18, 6, 12);
+        ctx.fillStyle = skinColor;
+        ctx.fillRect(-19, 28, 8, 6);
+        ctx.fillRect(11, 28, 8, 6);
+      } else if (gameState.isEating && !gameState.isHolding) {
+        drawEatingPose();
+      } else {
+        ctx.fillStyle = colors.shirt;
+        ctx.fillRect(-18, 18, 6, 12);
+        ctx.fillRect(12, 18, 6, 12);
+        ctx.fillStyle = skinColor;
+        ctx.fillRect(-19, 28, 8, 6);
+        ctx.fillRect(11, 28, 8, 6);
+      }
+    }
+
+    function drawEatingPose() {
+      // Руки подняты: держат буззу
+      ctx.fillStyle = colors.shirt;
+      ctx.fillRect(-20, 15, 6, 8); // левая рука
+      ctx.fillRect(-22, 10, 6, 8);
+      ctx.fillRect(14, 15, 6, 8); // правая рука
+      ctx.fillRect(16, 10, 6, 8);
+
+      // Руки/Каши бузза
+      ctx.fillStyle = colors.skin;
+      ctx.fillRect(-24, 5, 7, 7);
+      ctx.fillRect(17, 5, 7, 7);
+
+      // Бузза
+      drawBuuz(-18, 0);
+    }
+
+    function drawBuuz(x, y) {
+      ctx.fillStyle = colors.buuz;
+      ctx.fillRect(x, y, 14, 10);
+      ctx.fillStyle = colors.buuzDark;
+      ctx.fillRect(x + 2, y + 2, 10, 6);
+      ctx.fillStyle = colors.buuz;
+      ctx.fillRect(x + 3, y - 1, 2, 3);
+      ctx.fillRect(x + 6, y - 2, 2, 3);
+      ctx.fillRect(x + 9, y - 1, 2, 3);
+    }
+
+    function drawDeadCharacter(skinColor) {
+      ctx.save();
+      ctx.rotate(Math.PI / 2);
+      ctx.translate(20, -10);
+      ctx.fillStyle = colors.shirt;
+      ctx.fillRect(-15, 15, 30, 20);
+      ctx.fillStyle = skinColor;
+      ctx.fillRect(-16, -16, 32, 32);
+      ctx.fillStyle = colors.hair;
+      ctx.fillRect(-18, -18, 36, 20);
+      ctx.fillRect(-18, -10, 8, 20);
+      ctx.fillRect(10, -10, 8, 20);
+      // X eyes
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-11, -2, 8, 2);
+      ctx.fillRect(-11, -4, 2, 6);
+      ctx.fillRect(-5, -4, 2, 6);
+      ctx.fillRect(-5, -2, 8, 2);
+      ctx.fillRect(3, -2, 8, 2);
+      ctx.fillRect(3, -4, 2, 6);
+      ctx.fillRect(9, -4, 2, 6);
+      ctx.fillRect(9, -2, 8, 2);
+      ctx.fillStyle = '#999';
+      ctx.fillRect(-3, 8, 6, 4);
+      ctx.restore();
+    }
+
+    // Таблица (упрощенная) и фон
+    function drawTable() {
+      const tableY = 420;
+      ctx.fillStyle = colors.table;
+      ctx.fillRect(0, tableY, canvas.width, 180);
+      ctx.fillStyle = colors.tableDark;
+      for (let i = 0; i < canvas.width; i += 40) ctx.fillRect(i, tableY, 4, 180);
+      ctx.fillStyle = '#5D3A1A';
+      ctx.fillRect(0, tableY, canvas.width, 8);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(320, tableY - 15, 160, 20);
+      ctx.fillStyle = '#eee';
+      ctx.fillRect(330, tableY - 10, 140, 10);
+
+      // Бузза на тарелке
+      drawBuuz(350, tableY - 25);
+      drawBuuz(380, tableY - 28);
+      drawBuuz(410, tableY - 25);
+    }
+
+    // Здоровье
+    function updateHealthBar() {
+      const w = (gameState.health / 100) * 260;
+      healthFill.style.width = w + 'px';
+      if (gameState.health < 50) healthFill.style.background = '#FF9800';
+      if (gameState.health < 25) healthFill.style.background = '#F44336';
+      if (gameState.health >= 50) healthFill.style.background = '#4CAF50';
+    }
+
+    // Паровые частицы
+    class SteamParticle {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = -2 - Math.random() * 2;
+        this.life = 1;
+        this.size = 4 + Math.random() * 4;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= 0.015;
+        this.size += 0.1;
+      }
+      draw() {
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.life * 0.5})`;
+        ctx.fillRect(this.x, this.y, this.size, this.size);
+      }
+    }
+
+    function updateSteam() {
+      if (gameState.phase === 'running' && gameState.isEating && !gameState.isHolding && !gameState.isDead) {
+        if (gameState.burnLevel > 20 && Math.random() < 0.3) {
+          gameState.steamParticles.push(new SteamParticle(
+            420 + (Math.random() - 0.5) * 30,
+            350 + (Math.random() - 0.5) * 10
+          ));
+        }
+      }
+      gameState.steamParticles = gameState.steamParticles.filter(p => {
+        p.update();
+        return p.life > 0;
+      });
+    }
+
+    function drawSteam() {
+      gameState.steamParticles.forEach(p => p.draw());
+    }
+
+    // Обновление логики игры
+    function update() {
+      if (gameState.phase === 'dead') return;
+      if (gameState.phase === 'prestart') {
+        // моргание в пре-старт
+        gameState.blinkTimer++;
+        gameState.isBlinking = (gameState.blinkTimer % 60) < 30;
+        // здоровье и Burns остаются на константах до старта
+        return;
+      }
+
+      gameState.animationFrame++;
+
+      // Моргание
+      gameState.blinkTimer++;
+      if (gameState.blinkTimer > 150) {
+        gameState.isBlinking = true;
+        if (gameState.blinkTimer > 160) {
+          gameState.isBlinking = false;
+          gameState.blinkTimer = 0;
+        }
+      }
+
+      // Логика боя
+      if (gameState.isHolding) {
+        gameState.isEating = false;
+        if (gameState.burnLevel > 0) {
+          gameState.burnLevel -= 0.5;
+        }
+      } else {
+        gameState.isEating = true;
+        if (gameState.burnLevel < 100) {
+          gameState.burnLevel += 0.3;
+        }
+      }
+
+      // Урон здоровью от ожога
+      if (gameState.burnLevel > 50) gameState.health -= 0.3;
+      if (gameState.burnLevel > 80) gameState.health -= 0.5;
+
+      if (gameState.health <= 0) {
+        gameState.health = 0;
+        gameState.isDead = true;
+        gameState.phase = 'dead';
+      }
+
+      updateSteam();
+      updateHealthBar();
+    }
+
+    // Рисование фона и сцены
+    function drawBackground() {
+      ctx.fillStyle = '#4a3b5c';
+      ctx.fillRect(0, 0, canvas.width, 420);
+      ctx.fillStyle = '#3d3050';
+      for (let x = 0; x < canvas.width; x += 60) {
+        for (let y = 0; y < 420; y += 60) {
+          if ((x + y) % 120 === 0) ctx.fillRect(x, y, 30, 30);
+        }
+      }
+      ctx.fillStyle = '#2d1b4e';
+      ctx.fillRect(0, 420, canvas.width, 180);
+    }
+
+    // Рендеринг
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+      drawTable();
+
+      if (gameState.phase === 'prestart') {
+        // Пре‑старт: персонаж сидит, моргает; изображение отрисовано в drawChibiGirl
+        drawChibiGirl(400, 320);
+      } else if (gameState.phase === 'running') {
+        // Игровой режим
+        drawChibiGirl(400, 320);
+        drawSteam();
+      } else if (gameState.phase === 'dead') {
+        // Падение под стол и смерть
+        drawChibiGirl(400, 480);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 32px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME OVER!', canvas.width / 2, 250);
+        ctx.font = '20px Courier New';
+        ctx.fillText('Click to restart', canvas.width / 2, 280);
+      }
+
+      // Health bar
+      updateHealthBar();
+    }
+
+    // Главный цикл
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Перезапуск после смерти
+    canvas.addEventListener('click', () => {
+      if (gameState.phase === 'dead') {
+        // Вернуть к пре‑старту
+        gameState = {
+          phase: 'prestart',
+          health: 100,
+          isEating: false,
+          isDead: false,
+          isHolding: false,
+          burnLevel: 0,
+          animationFrame: 0,
+          steamParticles: [],
+          blinkTimer: 0,
+          isBlinking: true
         };
-        
-        // Colors
-        const colors = {
-            skin: '#FFDFC4',
-            skinBlush: '#FFB6A3',
-            skinBurn: '#FF8A7A',
-            hair: '#1a1a1a',
-            shirt: '#FFFFFF',
-            buuz: '#F4E4C1',
-            buuzDark: '#E8D4A8',
-            table: '#8B4513',
-            tableDark: '#654321',
-            steam: 'rgba(255, 255, 255, 0.6)',
-            healthBg: '#333',
-            healthFill: '#4CAF50',
-            healthWarning: '#FF9800',
-            healthDanger: '#F44336'
-        };
-        
-        // Input handling
-        canvas.addEventListener('mousedown', () => {
-            gameState.isHolding = true;
-        });
-        
-        canvas.addEventListener('mouseup', () => {
-            gameState.isHolding = false;
-        });
-        
-        canvas.addEventListener('mouseleave', () => {
-            gameState.isHolding = false;
-        });
-        
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            gameState.isHolding = true;
-        });
-        
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            gameState.isHolding = false;
-        });
-        
-        // Draw pixel art character (chibi girl)
-        function drawChibiGirl(x, y, scale = 4) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.scale(scale, scale);
-            
-            // Determine skin color based on burn level
-            let skinColor = colors.skin;
-            if (gameState.burnLevel > 30) {
-                skinColor = colors.skinBlush;
-            }
-            if (gameState.burnLevel > 60) {
-                skinColor = colors.skinBurn;
-            }
-            
-            if (gameState.isDead) {
-                drawDeadCharacter(skinColor);
-            } else {
-                drawAliveCharacter(skinColor);
-            }
-            
-            ctx.restore();
-        }
-        
-        function drawAliveCharacter(skinColor) {
-            // Body/Shirt
-            ctx.fillStyle = colors.shirt;
-            ctx.fillRect(-15, 15, 30, 20);
-            // Shirt collar
-            ctx.fillStyle = '#E0E0E0';
-            ctx.fillRect(-8, 15, 16, 3);
-            
-            // Head (chibi - large head)
-            ctx.fillStyle = skinColor;
-            ctx.fillRect(-16, -16, 32, 32);
-            
-            // Hair (back)
-            ctx.fillStyle = colors.hair;
-            ctx.fillRect(-18, -10, 36, 20);
-            ctx.fillRect(-18, 5, 8, 15);
-            ctx.fillRect(10, 5, 8, 15);
-            
-            // Hair (bangs)
-            ctx.fillRect(-18, -18, 36, 8);
-            ctx.fillRect(-16, -10, 6, 5);
-            ctx.fillRect(10, -10, 6, 5);
-            ctx.fillRect(-8, -14, 4, 4);
-            ctx.fillRect(4, -14, 4, 4);
-            
-            // Eyes
-            if (gameState.isBlinking) {
-                // Closed eyes (blinking)
-                ctx.fillStyle = colors.hair;
-                ctx.fillRect(-10, -2, 6, 2);
-                ctx.fillRect(4, -2, 6, 2);
-            } else {
-                // Open eyes (chibi style - large)
-                ctx.fillStyle = colors.hair;
-                ctx.fillRect(-11, -4, 8, 8);
-                ctx.fillRect(3, -4, 8, 8);
-                // Eye shine
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(-9, -2, 3, 3);
-                ctx.fillRect(5, -2, 3, 3);
-            }
-            
-            // Blush effect (when burning)
-            if (gameState.burnLevel > 30) {
-                ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
-                ctx.fillRect(-14, 2, 6, 4);
-                ctx.fillRect(8, 2, 6, 4);
-            }
-            
-            // Mouth
-            if (gameState.isEating && !gameState.isHolding) {
-                // Open mouth (eating)
-                ctx.fillStyle = '#CC6666';
-                ctx.fillRect(-4, 8, 8, 6);
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(-3, 9, 2, 2);
-                ctx.fillRect(1, 9, 2, 2);
-            } else {
-                // Closed mouth (happy smile)
-                ctx.fillStyle = '#CC6666';
-                ctx.fillRect(-3, 10, 6, 2);
-                ctx.fillRect(-4, 9, 2, 2);
-                ctx.fillRect(2, 9, 2, 2);
-            }
-            
-            // Arms and hands
-            if (gameState.isEating && !gameState.isHolding) {
-                // Arms up with buuz
-                drawEatingPose();
-            } else {
-                // Arms resting
-                ctx.fillStyle = colors.shirt;
-                ctx.fillRect(-18, 18, 6, 12);
-                ctx.fillRect(12, 18, 6, 12);
-                // Hands
-                ctx.fillStyle = skinColor;
-                ctx.fillRect(-19, 28, 8, 6);
-                ctx.fillRect(11, 28, 8, 6);
-            }
-        }
-        
-        function drawEatingPose() {
-            // Arms raised holding buuz
-            ctx.fillStyle = colors.shirt;
-            // Left arm
-            ctx.fillRect(-20, 15, 6, 8);
-            ctx.fillRect(-22, 10, 6, 8);
-            // Right arm
-            ctx.fillRect(14, 15, 6, 8);
-            ctx.fillRect(16, 10, 6, 8);
-            
-            // Hands
-            ctx.fillStyle = colors.skin;
-            ctx.fillRect(-24, 5, 7, 7);
-            ctx.fillRect(17, 5, 7, 7);
-            
-            // Buuz (steamed dumplings)
-            drawBuuz(-18, 0);
-        }
-        
-        function drawBuuz(x, y) {
-            ctx.fillStyle = colors.buuz;
-            ctx.fillRect(x, y, 14, 10);
-            ctx.fillStyle = colors.buuzDark;
-            ctx.fillRect(x + 2, y + 2, 10, 6);
-            // Pleats on top
-            ctx.fillStyle = colors.buuz;
-            ctx.fillRect(x + 3, y - 1, 2, 3);
-            ctx.fillRect(x + 6, y - 2, 2, 3);
-            ctx.fillRect(x + 9, y - 1, 2, 3);
-        }
-        
-        function drawDeadCharacter(skinColor) {
-            // Fallen body
-            ctx.save();
-            ctx.rotate(Math.PI / 2);
-            ctx.translate(20, -10);
-            
-            // Body/Shirt
-            ctx.fillStyle = colors.shirt;
-            ctx.fillRect(-15, 15, 30, 20);
-            
-            // Head (chibi)
-            ctx.fillStyle = skinColor;
-            ctx.fillRect(-16, -16, 32, 32);
-            
-            // Hair
-            ctx.fillStyle = colors.hair;
-            ctx.fillRect(-18, -18, 36, 20);
-            ctx.fillRect(-18, -10, 8, 20);
-            ctx.fillRect(10, -10, 8, 20);
-            
-            // X eyes (dead)
-            ctx.fillStyle = '#fff';
-            // Left X
-            ctx.fillRect(-11, -2, 8, 2);
-            ctx.fillRect(-11, -4, 2, 6);
-            ctx.fillRect(-5, -4, 2, 6);
-            ctx.fillRect(-5, -2, 8, 2);
-            // Right X
-            ctx.fillRect(3, -2, 8, 2);
-            ctx.fillRect(3, -4, 2, 6);
-            ctx.fillRect(9, -4, 2, 6);
-            ctx.fillRect(9, -2, 8, 2);
-            
-            // Mouth (dizzy spiral)
-            ctx.fillStyle = '#999';
-            ctx.fillRect(-3, 8, 6, 4);
-            
-            ctx.restore();
-        }
-        
-        // Draw table
-        function drawTable() {
-            const tableY = 420;
-            
-            // Table top
-            ctx.fillStyle = colors.table;
-            ctx.fillRect(0, tableY, canvas.width, 180);
-            
-            // Table pattern (pixel art wood grain)
-            ctx.fillStyle = colors.tableDark;
-            for (let i = 0; i < canvas.width; i += 40) {
-                ctx.fillRect(i, tableY, 4, 180);
-            }
-            
-            // Table edge
-            ctx.fillStyle = '#5D3A1A';
-            ctx.fillRect(0, tableY, canvas.width, 8);
-            
-            // Plate
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(320, tableY - 15, 160, 20);
-            ctx.fillStyle = '#eee';
-            ctx.fillRect(330, tableY - 10, 140, 10);
-            
-            // Buuz on plate
-            drawBuuz(350, tableY - 25);
-            drawBuuz(380, tableY - 28);
-            drawBuuz(410, tableY - 25);
-            
-            ctx.save();
-            ctx.scale(3, 3);
-            drawBuuz(145, (tableY - 25) / 3);
-            ctx.restore();
-        }
-        
-        // Draw health bar
-        function drawHealthBar() {
-            const barWidth = 200;
-            const barHeight = 20;
-            const x = (canvas.width - barWidth) / 2;
-            const y = 30;
-            
-            // Background
-            ctx.fillStyle = colors.healthBg;
-            ctx.fillRect(x - 4, y - 4, barWidth + 8, barHeight + 8);
-            
-            // Health fill
-            let healthColor = colors.healthFill;
-            if (gameState.health < 50) healthColor = colors.healthWarning;
-            if (gameState.health < 25) healthColor = colors.healthDanger;
-            
-            ctx.fillStyle = healthColor;
-            ctx.fillRect(x, y, (gameState.health / 100) * barWidth, barHeight);
-            
-            // Border
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x - 4, y - 4, barWidth + 8, barHeight + 8);
-            
-            // Label
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 16px Courier New';
-            ctx.textAlign = 'center';
-            ctx.fillText(`HEALTH: ${Math.ceil(gameState.health)}%`, canvas.width / 2, y + 16);
-        }
-        
-        // Steam particle system
-        class SteamParticle {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.vx = (Math.random() - 0.5) * 2;
-                this.vy = -2 - Math.random() * 2;
-                this.life = 1;
-                this.size = 4 + Math.random() * 4;
-            }
-            
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= 0.015;
-                this.size += 0.1;
-            }
-            
-            draw() {
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.life * 0.5})`;
-                ctx.fillRect(this.x, this.y, this.size, this.size);
-            }
-        }
-        
-        function updateSteam() {
-            // Generate steam when eating and burning
-            if (gameState.isEating && !gameState.isHolding && !gameState.isDead) {
-                if (gameState.burnLevel > 20 && Math.random() < 0.3) {
-                    gameState.steamParticles.push(new SteamParticle(
-                        420 + (Math.random() - 0.5) * 30,
-                        350 + (Math.random() - 0.5) * 10
-                    ));
-                }
-            }
-            
-            // Update particles
-            gameState.steamParticles = gameState.steamParticles.filter(p => {
-                p.update();
-                return p.life > 0;
-            });
-        }
-        
-        function drawSteam() {
-            gameState.steamParticles.forEach(p => p.draw());
-        }
-        
-        // Game update logic
-        function update() {
-            if (gameState.isDead) return;
-            
-            gameState.animationFrame++;
-            
-            // Blinking logic
-            gameState.blinkTimer++;
-            if (gameState.blinkTimer > 150) {
-                gameState.isBlinking = true;
-                if (gameState.blinkTimer > 160) {
-                    gameState.isBlinking = false;
-                    gameState.blinkTimer = 0;
-                }
-            }
-            
-            // Eating logic
-            if (gameState.isHolding) {
-                gameState.isEating = false;
-                // Recover from burn when not eating
-                if (gameState.burnLevel > 0) {
-                    gameState.burnLevel -= 0.5;
-                }
-            } else {
-                gameState.isEating = true;
-                // Build up burn when eating continuously
-                if (gameState.burnLevel < 100) {
-                    gameState.burnLevel += 0.3;
-                }
-            }
-            
-            // Health damage from burning
-            if (gameState.burnLevel > 50) {
-                gameState.health -= 0.3;
-            }
-            if (gameState.burnLevel > 80) {
-                gameState.health -= 0.5;
-            }
-            
-            // Check death
-            if (gameState.health <= 0) {
-                gameState.health = 0;
-                gameState.isDead = true;
-            }
-            
-            updateSteam();
-        }
-        
-        // Draw background
-        function drawBackground() {
-            // Wall
-            ctx.fillStyle = '#4a3b5c';
-            ctx.fillRect(0, 0, canvas.width, 420);
-            
-            // Pixel art pattern on wall
-            ctx.fillStyle = '#3d3050';
-            for (let x = 0; x < canvas.width; x += 60) {
-                for (let y = 0; y < 420; y += 60) {
-                    if ((x + y) % 120 === 0) {
-                        ctx.fillRect(x, y, 30, 30);
-                    }
-                }
-            }
-            
-            // Floor
-            ctx.fillStyle = '#2d1b4e';
-            ctx.fillRect(0, 420, canvas.width, 180);
-        }
-        
-        // Main render
-        function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            drawBackground();
-            drawTable();
-            
-            if (!gameState.isDead) {
-                drawChibiGirl(400, 320);
-                drawSteam();
-            } else {
-                // Draw fallen character under table
-                drawChibiGirl(400, 480);
-                // Draw "dead" text
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 32px Courier New';
-                ctx.textAlign = 'center';
-                ctx.fillText('GAME OVER!', canvas.width / 2, 250);
-                ctx.font = '20px Courier New';
-                ctx.fillText('Click to restart', canvas.width / 2, 280);
-            }
-            
-            drawHealthBar();
-        }
-        
-        // Game loop
-        function gameLoop() {
-            update();
-            render();
-            requestAnimationFrame(gameLoop);
-        }
-        
-        // Restart game
-        canvas.addEventListener('click', () => {
-            if (gameState.isDead) {
-                gameState = {
-                    health: 100,
-                    isEating: true,
-                    isDead: false,
-                    isHolding: false,
-                    burnLevel: 0,
-                    animationFrame: 0,
-                    steamParticles: [],
-                    blinkTimer: 0,
-                    isBlinking: false
-                };
-            }
-        });
-        
-        // Start game
-        gameLoop();
-    </script>
+        updateOverlay();
+      }
+    });
+
+    // Запуск инициализации
+    updateOverlay();
+    gameLoop();
+
+    // Суммарная логика: рисование бульонной пузи
+    // Добавим простую функцию для старта через кнопку (вызов из обработчика выше)
+  </script>
 </body>
 </html>
